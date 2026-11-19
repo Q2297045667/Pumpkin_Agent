@@ -1,10 +1,10 @@
-本指南旨在规范编程 Agent 将现有插件迁移至 Pumpkin 的过程，并帮助使用者建立插件的安装、使用、数据迁移和维护文档。
+> 本指南旨在规范编程 Agent 将现有插件迁移至 Pumpkin 的过程，并帮助使用者建立插件的安装、使用、数据迁移和维护文档。
 
 ### 准备工作：
 
 - 分析 Pumpkin 项目当前的 Native 和 Wasm 插件接口，选择目标服务端实际支持的最新版本。记录 Pumpkin 的版本或提交、Minecraft 版本、插件 SDK 版本和构建方式。若需要同时提供 Native 和 Wasm 产物，分别确认所需接口并进行验证。
-  - **Native**：截至 2026 年 11 月 19 日核对的上游提交 `b6546d53`，`PLUGIN_API_VERSION` 为 `6`。插件应针对目标服务端、操作系统和架构构建，并实际测试动态库能否加载。[Native 接口版本](https://github.com/Pumpkin-MC/Pumpkin/blob/b6546d53851fdb5b4e5363ac388ce299c8ce13e2/crates/pumpkin-core/src/plugin/mod.rs#L37-L41)
-  - **Wasm**：同一提交的默认构建支持 v0.1，v0.2 宿主需要在构建服务端时启用 `plugin-v0_2`。仓内 Rust SDK 仍从 v0.1 生成绑定。选择版本时须同时核对服务端构建特性和所用语言的 SDK。[服务端构建特性](https://github.com/Pumpkin-MC/Pumpkin/blob/b6546d53851fdb5b4e5363ac388ce299c8ce13e2/crates/pumpkin/Cargo.toml#L29-L32) · [Rust SDK 绑定](https://github.com/Pumpkin-MC/Pumpkin/blob/b6546d53851fdb5b4e5363ac388ce299c8ce13e2/crates/pumpkin-plugin-api/src/lib.rs#L203-L209)
+  - **Wasm**：优先使用 Wasm，注意权限设置等[服务端构建特性](https://github.com/Pumpkin-MC/Pumpkin/blob/b6546d53851fdb5b4e5363ac388ce299c8ce13e2/crates/pumpkin/Cargo.toml#L29-L32) · [Rust SDK 绑定](https://github.com/Pumpkin-MC/Pumpkin/blob/b6546d53851fdb5b4e5363ac388ce299c8ce13e2/crates/pumpkin-plugin-api/src/lib.rs#L203-L209)
+  - **Native**：只有在 Wasm 大多数功能无法实现时才应该考虑使用 [Native 接口](https://github.com/Pumpkin-MC/Pumpkin/blob/b6546d53851fdb5b4e5363ac388ce299c8ce13e2/crates/pumpkin-core/src/plugin/mod.rs#L37-L41)
 
 - 查阅与所选接口、语言和原插件平台相关的文档。文档示例与目标版本有出入时，以对应提交的接口定义、宿主实现和实际运行结果为准。
   - [Pumpkin Plugin Knowledge Base](https://book.vypal.me/)：查阅 Wasm 插件接口、版本差异和使用示例。
@@ -34,7 +34,7 @@
 
 - 按照 Pumpkin 的接口、代码风格和生命周期编写代码。按需拆分命令、事件、业务逻辑、配置、存储和第三方集成。优先打通一项完整的核心功能，再扩展其余功能。
 
-- 命令和数据包优先使用 Pumpkin 自带的 API。迁移命令时保留命令名、别名、参数补全、权限检查及控制台支持。传送、物品或 GUI 等功能优先调用对应的高层接口；确需直接操作数据包时，核对协议版本、发送方向和接收对象。
+- 命令和网络数据包优先使用 Pumpkin 自带的 API。迁移命令时保留命令名、别名、参数补全、权限检查及控制台支持。传送、物品或 GUI 等功能优先调用对应的高层接口；确需直接操作数据包时，核对协议版本、发送方向和接收对象。
 
 - 保留原插件可观察到的行为，特别是事件顺序、取消条件和失败后的状态。例如，操作被取消后，应按原插件的规则处理余额、物品和冷却。定时任务和监听器须随插件生命周期注册与清理；数据库查询和大文件读写应避免阻塞游戏 tick。
 
@@ -42,7 +42,7 @@
 
 - 暂时无法实现且不影响主要功能的部分可以延期。记录缺少的接口、受影响的操作和可用替代方案，并保留关联数据。若缺口影响核心流程，须先与使用者确认迁移范围。
 
-- **插件配置可以重新设计，已有业务数据必须兼容。** 为发生变化的配置项提供新旧对照和填写示例。按内容判断哪些属于业务数据，例如旧 `config.yml` 中保存的玩家传送点、领地和余额，都须纳入迁移范围。
+- **插件配置重新设计** 为发生变化的配置项提供新旧对照和填写示例。按内容判断哪些属于插件数据，例如旧 `config.yml` 中保存的玩家传送点、领地和余额，都须纳入迁移范围，对于玩家数据优先使用 SQLite 数据库。
 
 ### 数据库兼容：
 
