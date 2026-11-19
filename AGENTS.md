@@ -22,7 +22,7 @@
   - [PVault](https://github.com/vyPal/PVault)（共享经济账户与余额操作；原插件用到的 Vault 权限或聊天接口须单独核对）
   - [GourdPerms](https://market.pumpkinmc.org/plugin/9WfbQ2h0)（权限和权限组管理）
   - [GourdRTP](https://market.pumpkinmc.org/plugin/56jjI1s0)（随机安全传送）
-  - [PumpkinPIE | Placeholders for all](https://github.com/Rennex07/PumpkinPIE)（占位符注册与解析）
+  - [PumpkinPIE](https://github.com/Rennex07/PumpkinPIE)（占位符注册与解析）
   - [WorldEdit for Pumpkin](https://github.com/PumboMC/WorldEditPumpkin)（世界编辑；按需核对选区接口和结构文件格式）
   - [SimpleHolograms](https://github.com/Rennex07/SimpleHolograms)（持久化文字全息图）
 
@@ -60,7 +60,13 @@
 
 - 迁移后检查记录、关键引用和适用的汇总，再用正常的游戏操作抽查。**至少覆盖读取旧记录、修改记录、重启服务端、再次读取**。回滚说明还须交代如何处理切换后新增的数据。
 
+- 关于 Web UI，有些插件会自带一些 Web UI 框架和前端，尽量使用原有插件的前端部分，将新移植的插件与原版插件的 Web UI 进行对接，确保功能正常，Web UI 应采用和插件本体分离形式进行打包发布
+
 ### 最终验证阶段：
+
+- 对于 Pumpkin 和 Paper 测试环境应优先采用本地环境，分别询问用户本地服务端的目录地址，应向 Agent 使用者询问本地 Pumpkin 服务端的版本，是否已启用新版本 API 接口等，只有当本地没有测试环境或用户未提供环境时才尝试在本地搭建 Paper 和 Pumpkin 测试服务端
+
+- 需要使用客户端进行测试时，应询问 Agent 使用者本地客户端的安装位置，在测试和编写代码时应注意本地计算机的资源使用，比如限制内存，避免被系统强制结束进程
 
 - 在干净的项目环境中构建插件，在独立测试目录启动目标版本的 Pumpkin，加载实际构建的插件文件和已知的依赖插件。检查启动、运行和关闭日志。对支持的 Native、Wasm 或不同系统平台分别记录结果。
 
