@@ -5,7 +5,7 @@
 ### 准备工作：
 
 - 分析 Pumpkin 项目当前的 Native 和 Wasm 插件接口，选择目标服务端实际支持的最新版本。记录 Pumpkin 的版本或提交、Minecraft 版本、插件 SDK 版本和构建方式。若需要同时提供 Native 和 Wasm 产物，分别确认所需接口并进行验证。
-  - **Wasm**：优先使用 Wasm，注意权限设置等[服务端构建特性](https://github.com/Pumpkin-MC/Pumpkin/blob/b6546d53851fdb5b4e5363ac388ce299c8ce13e2/crates/pumpkin/Cargo.toml#L29-L32) · [Rust SDK 绑定](https://github.com/Pumpkin-MC/Pumpkin/blob/b6546d53851fdb5b4e5363ac388ce299c8ce13e2/crates/pumpkin-plugin-api/src/lib.rs#L203-L209)
+  - **Wasm**：优先使用 wasm32-wasip3，注意权限设置等[服务端构建特性](https://github.com/Pumpkin-MC/Pumpkin/blob/b6546d53851fdb5b4e5363ac388ce299c8ce13e2/crates/pumpkin/Cargo.toml#L29-L32) · [Rust SDK 绑定](https://github.com/Pumpkin-MC/Pumpkin/blob/b6546d53851fdb5b4e5363ac388ce299c8ce13e2/crates/pumpkin-plugin-api/src/lib.rs#L203-L209)
   - **Native**：只有在 Wasm 大多数功能无法实现时才应该考虑使用 [Native 接口](https://github.com/Pumpkin-MC/Pumpkin/blob/b6546d53851fdb5b4e5363ac388ce299c8ce13e2/crates/pumpkin-core/src/plugin/mod.rs#L37-L41)
 
 - 查阅与所选接口、语言和原插件平台相关的文档。文档示例与目标版本有出入时，以对应提交的接口定义、宿主实现和实际运行结果为准。
