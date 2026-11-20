@@ -93,3 +93,11 @@
 - **构建与验证记录**：记录实际使用的源码提交、工具链、SDK、构建特性、测试环境和结果。小型插件可将上述内容合并到一份 README；文档较长时，再将迁移与回滚步骤拆至 `MIGRATION.md`。
 
 - **功能对照和待办事项**：未完成的功能或者待办事项可以放在 `docs/TODO.md` 并说明为何未完成。
+
+### 构建流程：
+
+- **推送之前**：在推送到 Github 之前按照项目的实际情况编写至少包含两个构建脚本，分别为 `Releases` 和 `Nightly`，并测试构建后的结果，确保达到预期要求。
+
+- **发布版本**：`Releases` 只能由用户手动发布并包含常规编译优化，`Nightly` 每次 `Commits` 后自动执行。
+
+- **推送商店**：如有需要上架 [Pumpkin Market](https://market.pumpkinmc.org/) 或更新版本，则必须使用 `Releases` 构建，并且必须由用户确认上传更新，用户需要配置 Github 的变量环境（Pumpkin_Market_Token），以使用[Pumpkin Market Token](https://market.pumpkinmc.org/dashboard/plugins)。
