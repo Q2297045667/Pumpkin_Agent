@@ -1,0 +1,128 @@
+name: Releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '正式版版本号，例如 1.2.3 或 v1.2.3'
+        required: true
+        type: string
+      publish_to_market:
+        description: '同时发布到 Pumpkin Market 插件商店'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plugin-stable-releases
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Resolve the requested stable release
+    if: ${{ github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.source.outputs.version }}
+      published_id: ${{ steps.source.outputs.published_id }}
+    steps:
+      - id: source
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          PUBLISH_TO_MARKET: ${{ inputs.publish_to_market }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=${REQUESTED_VERSION#v}
+          if [[ ! $version =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Enter a stable version such as 1.2.3 or v1.2.3."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ $PUBLISH_TO_MARKET == true ]]; then
+            if release=$(gh release view "v$version" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,isPrerelease,databaseId 2>"$RUNNER_TEMP/release-error"); then
+              jq -e --arg tag "v$version" '.tagName == $tag and .isPrerelease == false and (.isDraft | type == "boolean")' <<< "$release" >/dev/null
+              if [[ $(jq -r .isDraft <<< "$release") == false ]]; then
+                id=$(jq -er '.databaseId | select(type == "number" and . > 0)' <<< "$release")
+                echo "published_id=$id" >> "$GITHUB_OUTPUT"
+                echo "Using the original assets of the published v$version release."
+              fi
+            elif [[ $(cat "$RUNNER_TEMP/release-error") != 'release not found' ]]; then
+              cat "$RUNNER_TEMP/release-error" >&2
+              exit 1
+            fi
+          fi
+
+  release:
+    needs: prepare
+    if: needs.prepare.outputs.published_id == ''
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/build.yml
+    with:
+      channel: release
+      version: ${{ needs.prepare.outputs.version }}
+
+  market_upload:
+    name: Upload the GitHub release to Pumpkin Market
+    needs: [prepare, release]
+    if: >-
+      !cancelled() && inputs.publish_to_market && needs.prepare.result == 'success' &&
+      (needs.release.result == 'success' || (needs.release.result == 'skipped' && needs.prepare.outputs.published_id != ''))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      needs_review: ${{ steps.upload.outputs.needs_review }}
+      plugin_id: ${{ steps.upload.outputs.plugin_id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download the published release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: v${{ needs.prepare.outputs.version }}
+          PUBLISHED_ID: ${{ needs.prepare.outputs.published_id }}
+        run: |
+          source .github/plugin.env
+          component="$PLUGIN_NAME.wasm"
+          release=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")
+          jq -e --arg tag "$RELEASE_TAG" --arg id "$PUBLISHED_ID" --arg component "$component" '
+            .tag_name == $tag and .draft == false and .prerelease == false and
+            ($id == "" or (.id | tostring) == $id) and
+            ([.assets[].name] | sort) == ([$component, "SHA256SUMS"] | sort)
+          ' <<< "$release" >/dev/null || { echo "::error::The expected published release or its assets have changed."; exit 1; }
+          mkdir -p release-assets
+          for name in "$component" SHA256SUMS; do
+            id=$(jq -er --arg name "$name" '.assets[] | select(.name == $name) | .id' <<< "$release")
+            gh api -H 'Accept: application/octet-stream' "repos/$GITHUB_REPOSITORY/releases/assets/$id" > "release-assets/$name"
+          done
+      - name: Verify and upload the stable component
+        id: upload
+        env:
+          MARKET_TOKEN: ${{ secrets.Pumpkin_Market_Token }}
+          MARKET_PLUGIN_ID: ${{ vars.PUMPKIN_MARKET_PLUGIN_ID }}
+          RELEASE_TAG: v${{ needs.prepare.outputs.version }}
+          PLUGIN_VERSION: ${{ needs.prepare.outputs.version }}
+        run: bash .github/scripts/publish-market.sh upload
+
+  market_review:
+    name: Submit the Market listing for review
+    needs: [prepare, market_upload]
+    if: ${{ !cancelled() && needs.market_upload.result == 'success' && needs.market_upload.outputs.needs_review == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check listing requirements and submit
+        env:
+          MARKET_TOKEN: ${{ secrets.Pumpkin_Market_Token }}
+          MARKET_PLUGIN_ID: ${{ needs.market_upload.outputs.plugin_id }}
+          PLUGIN_VERSION: ${{ needs.prepare.outputs.version }}
+        run: bash .github/scripts/publish-market.sh review

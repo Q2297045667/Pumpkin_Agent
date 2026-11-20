@@ -1,0 +1,142 @@
+name: Build
+
+on:
+  pull_request:
+  workflow_call:
+    inputs:
+      channel:
+        description: Publish a stable release or a nightly prerelease
+        required: true
+        type: string
+      version:
+        description: Stable version entered by the maintainer
+        required: false
+        type: string
+    outputs:
+      release_tag:
+        description: GitHub release tag
+        value: ${{ jobs.wasm.outputs.release_tag }}
+      plugin_version:
+        description: Version embedded in the plugin component
+        value: ${{ jobs.wasm.outputs.plugin_version }}
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  wasm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      release_tag: ${{ steps.version.outputs.release_tag }}
+      plugin_version: ${{ steps.version.outputs.plugin_version }}
+    env:
+      RUSTUP_TOOLCHAIN: 1.100.0
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Install the Rust toolchain and WASI target
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component rustfmt,clippy --target wasm32-wasip3
+
+      - name: Resolve the package version and release tag
+        id: version
+        env:
+          BUILD_CHANNEL: ${{ inputs.channel }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source .github/plugin.env
+          version=$(cargo metadata --locked --no-deps --format-version 1 |
+            jq -er --arg name "$CARGO_PACKAGE" '.packages[] | select(.name == $name) | .version')
+          tag=""
+          case "$BUILD_CHANNEL" in
+            release)
+              version=${REQUESTED_VERSION#v}
+              if [[ ! "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+                echo "::error::Enter a stable version such as 1.2.3 or v1.2.3."
+                exit 1
+              fi
+              tag="v$version"
+              ;;
+            nightly)
+              # Reruns use the creation date of the original run.
+              day=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq '.created_at[:10]')
+              tag="nightly-$day-${GITHUB_SHA:0:12}"
+              version="${version%%[-+]*}-nightly.${day//-/}+${GITHUB_SHA:0:12}"
+              ;;
+            "") ;; # Pull requests only build and validate the component.
+            *) echo "::error::Unknown build channel: $BUILD_CHANNEL"; exit 1 ;;
+          esac
+          if [[ -n "$tag" ]]; then
+            echo "PUMPKIN_PLUGIN_VERSION=$version" >> "$GITHUB_ENV"
+          fi
+          {
+            echo "component=$PLUGIN_NAME.wasm"
+            echo "release_tag=$tag"
+            echo "plugin_version=$version"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install WASI SDK 34.0 and wasm-tools 1.263.0
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -fsSL --retry 3 -o wasi-sdk.tar.gz https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz
+          curl -fsSL --retry 3 -o wasm-tools.tar.gz https://github.com/bytecodealliance/wasm-tools/releases/download/v1.263.0/wasm-tools-1.263.0-x86_64-linux.tar.gz
+          sha256sum -c <<'CHECKSUMS'
+          b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4  wasi-sdk.tar.gz
+          21c036c1740a0552124c79c6e2170cb61c5b016005671a6d5bc06cf642165431  wasm-tools.tar.gz
+          CHECKSUMS
+          mkdir wasi-sdk wasm-tools
+          tar -xzf wasi-sdk.tar.gz -C wasi-sdk --strip-components=1
+          tar -xzf wasm-tools.tar.gz -C wasm-tools --strip-components=1
+          {
+            echo "WASI_SYSROOT=$RUNNER_TEMP/wasi-sdk/share/wasi-sysroot"
+            echo "CC_wasm32_wasip3=$RUNNER_TEMP/wasi-sdk/bin/wasm32-wasip3-clang"
+            echo "AR_wasm32_wasip3=$RUNNER_TEMP/wasi-sdk/bin/llvm-ar"
+            echo "CXX_wasm32_wasip3=$RUNNER_TEMP/wasi-sdk/bin/wasm32-wasip3-clang++"
+          } >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/wasm-tools" >> "$GITHUB_PATH"
+
+      - name: Compile, check the ABI and package the plugin
+        run: bash .github/scripts/build.sh
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plugin-wasm
+          path: |
+            target/release-assets/${{ steps.version.outputs.component }}
+            target/release-assets/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    if: inputs.channel == 'release' || inputs.channel == 'nightly'
+    needs: wasm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: plugin-wasm
+          path: release-assets
+      - name: Publish the verified build
+        env:
+          BUILD_CHANNEL: ${{ inputs.channel }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.wasm.outputs.release_tag }}
+          PLUGIN_VERSION: ${{ needs.wasm.outputs.plugin_version }}
+        run: bash .github/scripts/publish.sh

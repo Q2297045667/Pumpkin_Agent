@@ -1,0 +1,22 @@
+name: Nightly
+
+on:
+  push:
+    branches: ['**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    if: ${{ !github.event.deleted }}
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/build.yml
+    with:
+      channel: nightly

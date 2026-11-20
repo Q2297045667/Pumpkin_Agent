@@ -97,6 +97,7 @@
 ### 构建流程：
 
 - **推送之前**：在推送到 Github 之前按照项目的实际情况编写至少包含两个构建脚本，分别为 `Releases` 和 `Nightly`，并测试构建后的结果，确保达到预期要求。
+  - Rust 的 `wasm32-wasip3` 插件可以复用[构建与发布模板](templates/wasm-plugin/README.md)。按目标项目填写 Cargo 包名和发布文件名，并在插件元数据中接入构建版本号。
 
 - **发布版本**：`Releases` 只能由用户手动发布并包含常规编译优化，`Nightly` 每次 `Commits` 后自动执行。
 
