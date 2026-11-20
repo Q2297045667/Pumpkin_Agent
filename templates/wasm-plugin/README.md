@@ -1,10 +1,10 @@
 # Rust Wasm 插件构建与发布模板
 
-这套模板为已有的 Pumpkin Rust 插件添加本地构建、拉取请求检查和 GitHub 发布流程。适用于单个 Cargo 包，也可在 Cargo 工作区中选择一个插件包。插件须能构建为 `wasm32-wasip3` 组件并导出 Pumpkin Wasm API `0.2.0`。每次成功构建生成供服主安装的 `<插件名>.wasm` 和用于核对下载内容的 `SHA256SUMS`。
+这套模板为已有的 Pumpkin Rust 插件添加本地构建、拉取请求检查和 GitHub 发布流程。适用于单个 Cargo 包，也可在 Cargo 工作区中选择一个插件包。插件须能构建为 `wasm32-wasip3` 组件并导出 Pumpkin Wasm API `0.2.0`。每次成功构建生成供服主安装的 `<插件名>.wasm` 和用于检查下载内容的 `SHA256SUMS`。
 
 ## 接入已有插件
 
-1. 在**目标插件仓库根目录**执行以下命令，把路径换成本机的 Pumpkin_Agent 目录。如果已有同名工作流或脚本，先核对差异再合并。
+1. 在**目标插件仓库根目录**执行以下命令，把路径换成本机的 Pumpkin_Agent 目录。如果已有同名工作流或脚本，先检查差异再合并。
 
    ```sh
    template=/path/to/Pumpkin_Agent/templates/wasm-plugin

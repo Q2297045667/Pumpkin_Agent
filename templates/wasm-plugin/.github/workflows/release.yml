@@ -104,7 +104,7 @@ jobs:
       - name: Verify and upload the stable component
         id: upload
         env:
-          MARKET_TOKEN: ${{ secrets.Pumpkin_Market_Token }}
+          MARKET_TOKEN: ${{ secrets.PUMPKIN_MARKET_TOKEN }}
           MARKET_PLUGIN_ID: ${{ vars.PUMPKIN_MARKET_PLUGIN_ID }}
           RELEASE_TAG: v${{ needs.prepare.outputs.version }}
           PLUGIN_VERSION: ${{ needs.prepare.outputs.version }}
@@ -122,7 +122,7 @@ jobs:
           persist-credentials: false
       - name: Check listing requirements and submit
         env:
-          MARKET_TOKEN: ${{ secrets.Pumpkin_Market_Token }}
+          MARKET_TOKEN: ${{ secrets.PUMPKIN_MARKET_TOKEN }}
           MARKET_PLUGIN_ID: ${{ needs.market_upload.outputs.plugin_id }}
           PLUGIN_VERSION: ${{ needs.prepare.outputs.version }}
         run: bash .github/scripts/publish-market.sh review

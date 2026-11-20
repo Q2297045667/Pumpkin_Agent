@@ -14,7 +14,7 @@ fail() {
 }
 
 [[ ${MARKET_PLUGIN_ID:-} =~ ^[1-9][0-9]*$ ]] || fail 'Set PUMPKIN_MARKET_PLUGIN_ID to the numeric ID from the Studio management URL.'
-: "${MARKET_TOKEN:?Set the Pumpkin_Market_Token repository secret.}"
+: "${MARKET_TOKEN:?Set the PUMPKIN_MARKET_TOKEN repository secret.}"
 : "${PLUGIN_VERSION:?Missing version from the GitHub release.}"
 api=https://market.pumpkinmc.org/api
 plugin_url="$api/plugins/$MARKET_PLUGIN_ID"

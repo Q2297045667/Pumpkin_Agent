@@ -111,4 +111,4 @@
 | --- | --- |
 | `Nightly` | 推送提交后自动运行。仓库模板对任一分支的每次推送构建一次，以该次推送的最后一个提交发布 GitHub 预发布版。 |
 | `Releases` | 由使用者手动发布，启用常规发布优化。仓库模板要求在默认分支输入正式版本号，如 `1.2.3`，将构建结果发布到 `v1.2.3`。 |
-| Pumpkin Market | 如需上架或更新，须由使用者确认，并使用对应 GitHub 正式版的原始附件。用模板时，先在开发者后台建立条目，将数字 ID 存入 GitHub Actions 变量 `PUMPKIN_MARKET_PLUGIN_ID`，将令牌存入 Actions 密钥 `Pumpkin_Market_Token`，再由使用者在 `Releases` 中勾选商店上传。[Pumpkin Market 开发者后台](https://market.pumpkinmc.org/dashboard/plugins) |
+| Pumpkin Market | 如需上架或更新，须由使用者确认，并使用对应 GitHub 正式版的原始附件。用模板时，先在开发者后台建立条目，将数字 ID 存入 GitHub Actions 变量 `PUMPKIN_MARKET_PLUGIN_ID`，将令牌存入 Actions 密钥 `PUMPKIN_MARKET_TOKEN`，再由使用者在 `Releases` 中勾选商店上传。[Pumpkin Market 开发者后台](https://market.pumpkinmc.org/dashboard/plugins) |
